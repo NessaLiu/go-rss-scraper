@@ -1,26 +1,44 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/NessaLiu/go-rss-scraper/internal/database"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
+type apiConfig struct {
+	DB *database.Queries
+}
+
 func main() {
-	fmt.Println("Hello world")
-
 	godotenv.Load(".env")
-	portStr := os.Getenv("PORT")
 
+	portStr := os.Getenv("PORT")
 	if portStr == "" {
 		log.Fatal("PORT is not found in the env")
 	}
-	fmt.Println("Port: ", portStr)
+
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL is not found in the env")
+	}
+
+	// Connect to DB
+	conn, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatal("Unable to connect to database")
+	}
+	apiConfig := apiConfig{
+		DB: database.New(conn),
+	} // create api config
 
 	router := chi.NewRouter()
 	// cors configuration lets people send requests to our server from a browser
@@ -36,6 +54,7 @@ func main() {
 	v1Router := chi.NewRouter()                // create v1 router so we can mount it to the v1 path
 	v1Router.Get("/healthz", handlerReadiness) // Connecting handlerReadiness function to /healthz path (scope to GET requests)
 	v1Router.Get("/err", handlerErr)
+	v1Router.Post("/users", apiConfig.handlerCreateUser)
 
 	router.Mount("/v1", v1Router)
 
@@ -45,7 +64,7 @@ func main() {
 		Handler: router,
 		Addr:    ":" + portStr,
 	}
-	err := serv.ListenAndServe()
+	err = serv.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}
