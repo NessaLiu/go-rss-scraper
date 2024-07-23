@@ -11,9 +11,10 @@ import (
 )
 
 // The signature of the handler can't change, so we make this a method and pass in the apiConfig struct
-func (apiConfig *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
+func (apiConfig *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, user database.User) {
 	type parameters struct {
 		Name string `json:"name"`
+		URL  string `json:"url"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -23,20 +24,18 @@ func (apiConfig *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Use DB to create user
-	user, err := apiConfig.DB.CreateUser(r.Context(), database.CreateUserParams{
+	// Use DB to create feed
+	feed, err := apiConfig.DB.CreateFeed(r.Context(), database.CreateFeedParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Name:      params.Name,
-	}) // sqlc created this method for us from reading our sql
+		Url:       params.URL,
+		UserID:    user.ID,
+	})
 	if err != nil {
-		respondWithError(w, 400, fmt.Sprintf("Could not create user: %s", err)) // Sprint formats to string
+		respondWithError(w, 400, fmt.Sprintf("Could not create feed: %s", err)) // Sprint formats to string
 		return
 	}
-	respondWithJSON(w, 201, dbUserToUser(user))
-}
-
-func (apiConfig *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user database.User) {
-	respondWithJSON(w, 200, dbUserToUser(user))
+	respondWithJSON(w, 201, dbFeedToFeed(feed))
 }
