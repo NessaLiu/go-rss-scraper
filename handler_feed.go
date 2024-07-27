@@ -39,3 +39,12 @@ func (apiConfig *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Req
 	}
 	respondWithJSON(w, 201, dbFeedToFeed(feed))
 }
+
+// Non-authenticated - don't need user
+func (apiConfig *apiConfig) handlerGetFeeds(w http.ResponseWriter, r *http.Request) {
+	feeds, err := apiConfig.DB.GetFeeds(r.Context())
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("Could not get feeds: %s", err))
+	}
+	respondWithJSON(w, 201, dbFeedsToFeeds(feeds))
+}
