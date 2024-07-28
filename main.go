@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/NessaLiu/go-rss-scraper/internal/database"
 	"github.com/go-chi/chi"
@@ -19,6 +20,13 @@ type apiConfig struct {
 }
 
 func main() {
+
+	// feed, err := urlToFeed("https://wagslane.dev/index.xml")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(feed)
+
 	godotenv.Load(".env")
 
 	portStr := os.Getenv("PORT")
@@ -36,9 +44,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to database")
 	}
+	db := database.New(conn)
 	apiConfig := apiConfig{
-		DB: database.New(conn),
+		DB: db,
 	} // create api config
+
+	go startScraping(db, 10, time.Minute) // start a new go routine to not disrupt the main flow (startScraping never returns!)
 
 	router := chi.NewRouter()
 	// cors configuration lets people send requests to our server from a browser
@@ -65,6 +76,8 @@ func main() {
 	v1Router.Get("/feed_follows", apiConfig.middlewareAuth(apiConfig.handlerGetFeedFollows))
 	// Delete typically doesn't have a body for the payload - send ID in the http path
 	v1Router.Delete("/feed_follows/{feedFollowID}", apiConfig.middlewareAuth(apiConfig.handlerDeleteFeedFollows))
+
+	v1Router.Get("/posts", apiConfig.middlewareAuth(apiConfig.handlerGetPostsForUser))
 
 	router.Mount("/v1", v1Router)
 
